@@ -46,6 +46,7 @@ window.SF = window.SF || {};
     await G.fade(true);
     $('#screen').hidden = true; $('#screen').innerHTML = '';
     G.setBar(true);
+    if (state.flags.savedMilk) { G.cut = false; return M.ending(); } // mission already won: finish it
     G.loadScene(state.scene);
     await G.fade(false);
     if (G.scene.enter) { G.busy++; try { await G.scene.enter(G, state.from); } finally { G.busy--; } }

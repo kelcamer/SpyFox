@@ -382,7 +382,7 @@ window.SF = window.SF || {};
           <button class="btn alt" id="w-music">Music: ${A.musicOn ? 'on' : 'off'}</button>
           <button class="btn alt" id="w-voice">Voices: ${A.voiceOn ? 'on' : 'off'}</button>
           <button class="btn alt" id="w-sfx">Sounds: ${A.sfxOn ? 'on' : 'off'}</button>
-          <button class="btn red" id="w-menu">Save &amp; quit</button>
+          ${opts.wait ? '' : '<button class="btn red" id="w-menu">Save &amp; quit</button>'}
         </div>
       </div></div>`;
     panel.hidden = false;
@@ -396,7 +396,7 @@ window.SF = window.SF || {};
     $('#w-music').onclick = (e) => { A.setMusic(!A.musicOn); e.target.textContent = `Music: ${A.musicOn ? 'on' : 'off'}`; savePrefs(); };
     $('#w-voice').onclick = (e) => { A.voiceOn = !A.voiceOn; if (!A.voiceOn) A.hush(); e.target.textContent = `Voices: ${A.voiceOn ? 'on' : 'off'}`; savePrefs(); };
     $('#w-sfx').onclick = (e) => { A.sfxOn = !A.sfxOn; e.target.textContent = `Sounds: ${A.sfxOn ? 'on' : 'off'}`; savePrefs(); };
-    $('#w-menu').onclick = () => { close(); G.save(); SF.main.title(); };
+    if (!opts.wait) $('#w-menu').onclick = () => { close(); G.save(); SF.main.title(); };
     if (opts.wait) return new Promise((r) => { $('#w-close').onclick = () => { close(); r(); }; });
   };
   function savePrefs() { try { localStorage.setItem('spyfox-prefs', JSON.stringify({ m: A.musicOn, v: A.voiceOn, s: A.sfxOn })); } catch (e) { /* ignore */ } }

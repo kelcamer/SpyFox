@@ -529,14 +529,14 @@ window.SF = window.SF || {};
       ${BEAMS.map((x) => `<rect x="${x - 22}" y="60" width="44" height="30" rx="6" fill="#455a64" ${K3}/><circle cx="${x}" cy="90" r="8" fill="#ff1744"/><rect x="${x - 22}" y="630" width="44" height="22" rx="6" fill="#455a64" ${K3}/>`).join('')}
       <rect x="1120" y="170" width="150" height="320" rx="12" fill="#6a2c91" ${K}/><circle cx="1195" cy="320" r="40" fill="#ffc93c" ${K}/><text x="1195" y="334" text-anchor="middle" font-family="Luckiest Guy, Impact, sans-serif" font-size="38" fill="${INK}">W</text>
       <text x="1195" y="160" text-anchor="middle" font-family="Fredoka, sans-serif" font-weight="700" font-size="20" fill="#ff5252" class="flicker">LAB</text>`,
-    fg: (G) => G.flag('misted') ? `<g opacity=".25">${BEAMS.map((x) => `<rect x="${x - 70}" y="80" width="140" height="560" fill="#b2ebf2"/>`).join('')}</g>
+    fg: (G) => G.flag('misted') && !G.flag('lasersOff') ? `<g opacity=".25">${BEAMS.map((x) => `<rect x="${x - 70}" y="80" width="140" height="560" fill="#b2ebf2"/>`).join('')}</g>
       ${BEAMS.map((x, i) => `<g id="beam${i}"><path d="M${x},92 L${x},632" stroke="#ff1744" stroke-width="12" opacity=".5"/><path d="M${x},92 L${x},632" stroke="#ffcdd2" stroke-width="4"/></g>`).join('')}` : '',
     hotspots: (G) => {
       const sc = S.corridor;
-      const i = sc.next || 0;
+      const i = G.flag('lasersOff') ? BEAMS.length : sc.next || 0;
       const list = [
-        { id: 'back', name: 'Back outside', rect: [0, 430, 80, 180], exit: 'gate', arrow: 'left', walk: [150, 590], when: () => (S.corridor.next || 0) === 0 },
-        { id: 'door', name: 'Lab door', rect: [1110, 160, 170, 340], exit: 'lab', arrow: 'right', walk: [1100, 590], when: () => (S.corridor.next || 0) >= BEAMS.length },
+        { id: 'back', name: 'Back outside', rect: [0, 430, 80, 180], exit: 'gate', arrow: 'left', walk: [150, 590], when: () => G.flag('lasersOff') || (S.corridor.next || 0) === 0 },
+        { id: 'door', name: 'Lab door', rect: [1110, 160, 170, 340], exit: 'lab', arrow: 'right', walk: [1100, 590], when: () => G.flag('lasersOff') || (S.corridor.next || 0) >= BEAMS.length },
       ];
       if (i < BEAMS.length) list.push({
         id: 'beam', name: G.flag('misted') ? 'Laser beam' : 'Hallway', rect: [BEAMS[i] - 90, 80, 180 + (i < BEAMS.length - 1 ? 0 : 0), 560], walk: false,
@@ -556,10 +556,10 @@ window.SF = window.SF || {};
     },
     enter: async (G, from) => {
       const sc = S.corridor;
-      if (from === 'lab') { sc.next = BEAMS.length; sc.walk = [BEAMS[2] + 60, 560, 1150, 610]; }
+      if (G.flag('lasersOff') || from === 'lab') { G.set('lasersOff'); sc.next = BEAMS.length; sc.walk = [140, 560, 1150, 610]; }
       else { sc.next = 0; sc.walk = [140, 560, BEAMS[0] - 95, 610]; }
       G.refreshFg();
-      if (G.flag('misted')) sc.startBeams(G);
+      if (G.flag('misted') && !G.flag('lasersOff')) sc.startBeams(G);
       if (!G.flag('corridorIntro')) { G.set('corridorIntro'); await G.say('fox', 'A long, empty hallway. Too empty. Something tells me it isn\'t as empty as it looks.'); }
     },
     startBeams(G) {
@@ -580,7 +580,12 @@ window.SF = window.SF || {};
       sc.next = i + 1;
       sc.walk = [BEAMS[i] + 60, 560, i + 1 < BEAMS.length ? BEAMS[i + 1] - 95 : 1150, 610];
       G.refreshFg(); if (G.flag('misted')) sc.startBeams(G);
-      if (sc.next >= BEAMS.length) { A.sfx('pickup'); await G.say('fox', 'Made it! Spy Fox: one. Lasers: zero.'); }
+      if (sc.next >= BEAMS.length) {
+        A.sfx('pickup'); G.set('lasersOff');
+        await G.say('fox', 'Made it! Spy Fox: one. Lasers: zero.');
+        A.sfx('click'); sc.walk = [140, 560, 1150, 610]; G.refreshFg();
+        await G.say('fox', 'And here\'s the laser switch by the door. Click. Now I can come and go as I please.');
+      }
       return;
     }
     // Zapped!
@@ -668,7 +673,8 @@ window.SF = window.SF || {};
     ],
     enter: async (G) => {
       startCountdown(G);
-      if (G.flag('williamGone') || G.flag('savedMilk')) return;
+      if (G.flag('savedMilk')) { await G.say('fox', 'Mission accomplished. Time to head home.'); return SF.main.ending(); }
+      if (G.flag('williamGone')) return;
       G.cut = true; G.setBar(false);
       await G.walk('fox', 440, 600);
       G.face('william', -1);
