@@ -1,0 +1,76 @@
+<title>Spy Fox in Dry Cereal</title>
+<meta name="theme-color" content="#120d24">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Luckiest+Guy&family=Fredoka:wght@400;600;700&display=swap">
+<style>
+/*CSS*/
+</style>
+
+<div id="game">
+  <div id="stage">
+    <svg id="scene" viewBox="0 0 1280 720" preserveAspectRatio="xMidYMid meet" aria-label="Game scene">
+      <g id="layer-bg"></g>
+      <g id="layer-actors"></g>
+      <g id="layer-fg"></g>
+      <g id="layer-fx"></g>
+    </svg>
+
+    <div id="ui">
+      <div id="hotlabel" hidden></div>
+      <div id="subtitle" hidden><b id="sub-name"></b><span id="sub-text"></span></div>
+      <div id="choices" hidden></div>
+
+      <div id="bar">
+        <button id="watch-btn" aria-label="Spy Watch">
+          <svg viewBox="0 0 100 100" aria-hidden="true"><use href="#ico-watch"/></svg>
+        </button>
+        <div id="inv" role="list" aria-label="Inventory"></div>
+        <button id="vision-btn" aria-label="Spy Vision: show things you can tap">
+          <svg viewBox="0 0 100 100" aria-hidden="true"><use href="#ico-glasses"/></svg>
+        </button>
+      </div>
+
+      <div id="held" hidden></div>
+      <div id="toast" hidden></div>
+      <div id="panel" hidden></div>
+      <div id="minigame" hidden></div>
+      <div id="screen" hidden></div>
+      <div id="fade"></div>
+    </div>
+  </div>
+
+  <div id="rotate" hidden>
+    <div class="rotate-card">
+      <svg viewBox="0 0 120 120" aria-hidden="true"><rect x="38" y="14" width="44" height="80" rx="8" fill="none" stroke="currentColor" stroke-width="6"/><path d="M20 100 Q60 125 100 100" fill="none" stroke="currentColor" stroke-width="6"/><path d="M92 92 L102 100 L92 108" fill="none" stroke="currentColor" stroke-width="6"/></svg>
+      <p>Turn your phone sideways for the full spy experience.</p>
+      <button id="rotate-ok">Play anyway</button>
+    </div>
+  </div>
+</div>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="ico-watch" viewBox="0 0 100 100">
+      <rect x="34" y="2" width="32" height="22" rx="4" fill="#3b3550"/>
+      <rect x="34" y="76" width="32" height="22" rx="4" fill="#3b3550"/>
+      <circle cx="50" cy="50" r="34" fill="#d9d4e8" stroke="#20152b" stroke-width="5"/>
+      <circle cx="50" cy="50" r="25" fill="#1b9e8f" stroke="#20152b" stroke-width="3"/>
+      <path d="M50 50 L50 32 M50 50 L63 56" stroke="#fff" stroke-width="5" stroke-linecap="round"/>
+      <circle cx="80" cy="30" r="6" fill="#ff3d5a" stroke="#20152b" stroke-width="3"/>
+    </symbol>
+    <symbol id="ico-glasses" viewBox="0 0 100 100">
+      <path d="M8 40 Q50 30 92 40" stroke="#20152b" stroke-width="6" fill="none"/>
+      <path d="M10 40 Q12 66 32 66 Q46 66 46 44 Z" fill="#20152b"/>
+      <path d="M54 44 Q54 66 68 66 Q88 66 90 40 Z" fill="#20152b"/>
+      <path d="M18 46 L26 46" stroke="#7fe3ff" stroke-width="4" stroke-linecap="round"/>
+      <path d="M62 48 L70 48" stroke="#7fe3ff" stroke-width="4" stroke-linecap="round"/>
+    </symbol>
+  </defs>
+</svg>
+
+<script>
+/*JS*/
+</script>

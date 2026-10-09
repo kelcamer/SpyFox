@@ -1,0 +1,10 @@
+{
+  "name": "Spy Fox in Dry Cereal",
+  "short_name": "Spy Fox",
+  "start_url": "./",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#120d24",
+  "theme_color": "#120d24",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any maskable" }]
+}
