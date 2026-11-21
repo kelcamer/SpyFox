@@ -1,0 +1,278 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PDF Speed Reader</title>
+<style>
+  :root {
+    --bg: #f6f5f1; --panel: #ffffff; --ink: #1d1d1f; --muted: #6b6b72; --line: #dedbd2;
+    --accent: #e5483b; --accent-ink: #ffffff; --ok: #1f8a4c;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #131316; --panel: #1c1c21; --ink: #f1f0ec; --muted: #9a9aa3; --line: #2e2e36; --accent: #ff6a5c; --accent-ink: #1a0b09; --ok: #4cd08a; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px; margin-bottom: 16px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  input[type=url] { flex: 1 1 260px; min-width: 0; padding: 12px; font-size: 1rem; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); }
+  button, .btn { font: inherit; padding: 10px 16px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+  button:hover, .btn:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  button:disabled { opacity: .5; cursor: default; }
+  .status { min-height: 1.5em; margin-top: 10px; color: var(--muted); font-size: .92rem; }
+  .status.err { color: #d93025; } .status.ok { color: var(--ok); }
+  .hint { font-size: .85rem; color: var(--muted); margin-top: 8px; }
+  #drop.over { outline: 2px dashed var(--accent); outline-offset: 4px; }
+
+  /* Reader */
+  .stage { position: relative; height: 180px; display: grid; place-items: center; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
+  .stage::before, .stage::after { content: ""; position: absolute; left: 50%; width: 2px; height: 22px; background: var(--accent); opacity: .5; transform: translateX(-1px); }
+  .stage::before { top: 0; } .stage::after { bottom: 0; }
+  #word { width: 100%; display: grid; grid-template-columns: 1fr auto 1fr; font-size: var(--fs, 52px); font-weight: 500; white-space: pre; user-select: none; }
+  #word .l { text-align: right; } #word .r { text-align: left; } #word .p { color: var(--accent); font-weight: 700; }
+  .meta { display: flex; justify-content: space-between; color: var(--muted); font-size: .85rem; margin: 10px 2px 0; flex-wrap: wrap; gap: 6px; }
+  input[type=range] { width: 100%; accent-color: var(--accent); }
+  .controls { display: flex; gap: 8px; justify-content: center; margin: 12px 0; flex-wrap: wrap; }
+  .controls button { min-width: 56px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 20px; }
+  @media (max-width: 520px) { .grid { grid-template-columns: 1fr; } }
+  label.s { display: block; font-size: .85rem; color: var(--muted); }
+  label.s b { color: var(--ink); }
+  textarea { width: 100%; min-height: 220px; padding: 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: 0.92rem/1.5 ui-monospace, Menlo, Consolas, monospace; resize: vertical; }
+  .hidden { display: none !important; }
+  kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 5px; padding: 0 5px; font-size: .8rem; }
+</style>
+</head>
+<body>
+<main>
+  <h1>📖 PDF Speed Reader</h1>
+  <p class="sub">Paste a PDF link → text is extracted, copied to your clipboard, and ready to speed read.</p>
+
+  <section class="card" id="drop">
+    <form id="form" class="row">
+      <input id="url" type="url" placeholder="https://example.com/paper.pdf" autocomplete="off" required>
+      <button class="primary" id="go" type="submit">Extract &amp; copy</button>
+    </form>
+    <div class="row" style="margin-top:8px">
+      <label class="btn" for="file">…or choose / drop a PDF file</label>
+      <input id="file" type="file" accept="application/pdf,.pdf" class="hidden">
+      <button type="button" id="pasteTxt">Or paste plain text</button>
+    </div>
+    <div class="status" id="status" role="status"></div>
+    <div class="hint">Some sites block downloads from other websites (CORS). If a direct fetch fails, the app automatically retries through a public proxy. For private or sensitive PDFs, use the file picker instead so nothing leaves your device.</div>
+  </section>
+
+  <section class="card hidden" id="reader">
+    <div class="stage"><div id="word"><span class="l"></span><span class="p">Ready</span><span class="r"></span></div></div>
+    <input type="range" id="seek" min="0" max="0" value="0" aria-label="Position">
+    <div class="meta"><span id="pos">0 / 0</span><span id="eta"></span></div>
+    <div class="controls">
+      <button id="back10" title="Back 10 words (←)">⏪ 10</button>
+      <button id="prev" title="Previous word">◀</button>
+      <button class="primary" id="play" title="Play / pause (Space)">▶ Play</button>
+      <button id="next" title="Next word">▶</button>
+      <button id="fwd10" title="Forward 10 words (→)">10 ⏩</button>
+      <button id="restart">⟲ Start</button>
+    </div>
+    <div class="grid">
+      <label class="s">Speed: <b id="wpmV">350</b> words/min
+        <input type="range" id="wpm" min="100" max="1000" step="25" value="350"></label>
+      <label class="s">Text size: <b id="fsV">52</b> px
+        <input type="range" id="fs" min="24" max="96" step="2" value="52"></label>
+    </div>
+    <div class="hint">Shortcuts: <kbd>Space</kbd> play/pause · <kbd>←</kbd>/<kbd>→</kbd> ±10 words · <kbd>↑</kbd>/<kbd>↓</kbd> speed. Pauses a little longer at punctuation and long words.</div>
+  </section>
+
+  <section class="card hidden" id="textCard">
+    <div class="row" style="justify-content:space-between; margin-bottom:8px">
+      <strong>Extracted text <span id="count" style="color:var(--muted);font-weight:400"></span></strong>
+      <span class="row">
+        <button id="copy">📋 Copy again</button>
+        <button id="useText">Read this text</button>
+      </span>
+    </div>
+    <textarea id="text" spellcheck="false" placeholder="Text appears here. You can edit it, then press “Read this text”."></textarea>
+  </section>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const statusEl = $('status');
+  const setStatus = (msg, kind = '') => { statusEl.textContent = msg; statusEl.className = 'status ' + kind; };
+
+  if (window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+  // ---------- Fetching ----------
+  const PROXIES = [
+    u => 'https://corsproxy.io/?' + encodeURIComponent(u),
+    u => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(u),
+  ];
+  async function grab(url) {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    return new Uint8Array(await r.arrayBuffer());
+  }
+  const looksLikePdf = b => b && b.length > 4 && b[0] === 0x25 && b[1] === 0x50 && b[2] === 0x44 && b[3] === 0x46; // %PDF
+  async function fetchPdf(url) {
+    const attempts = [['direct', u => u], ...PROXIES.map((p, i) => ['proxy ' + (i + 1), p])];
+    let lastErr;
+    for (const [name, make] of attempts) {
+      try {
+        setStatus(name === 'direct' ? 'Downloading PDF…' : `Direct download blocked, trying ${name}…`);
+        const bytes = await grab(make(url));
+        if (!looksLikePdf(bytes)) throw new Error('That link did not return a PDF');
+        return bytes;
+      } catch (e) { lastErr = e; }
+    }
+    throw new Error((lastErr && lastErr.message ? lastErr.message + '. ' : '') + 'Could not download it. Save the PDF and use the file picker instead.');
+  }
+
+  // ---------- Extraction ----------
+  async function extract(bytes) {
+    if (!window.pdfjsLib) throw new Error('PDF engine failed to load (check your connection).');
+    const pdf = await pdfjsLib.getDocument({ data: bytes }).promise;
+    const pages = [];
+    for (let n = 1; n <= pdf.numPages; n++) {
+      setStatus(`Reading page ${n} of ${pdf.numPages}…`);
+      const page = await pdf.getPage(n);
+      const content = await page.getTextContent();
+      let out = '', prevY = null;
+      for (const it of content.items) {
+        if (it.str === undefined) continue;
+        const y = it.transform[5], h = it.height || 10;
+        if (prevY !== null) {
+          const gap = Math.abs(prevY - y);
+          if (gap > h * 1.9) out += '\n\n';
+          else if (gap > h * 0.5) out += '\n';
+          else if (out && !/\s$/.test(out) && !/^\s/.test(it.str)) out += ' ';
+        }
+        out += it.str;
+        if (it.str.trim()) prevY = y;
+        if (it.hasEOL && !out.endsWith('\n')) out += '\n';
+      }
+      pages.push(out);
+    }
+    let text = pages.join('\n\n');
+    text = text.replace(/(\w)-\n(?=[a-z])/g, '$1')      // join hyphenated line breaks
+              .replace(/[ \t]+/g, ' ')
+              .replace(/ ?\n ?/g, '\n')
+              .replace(/(?<!\n)\n(?!\n)/g, ' ')          // single newline → space
+              .replace(/\n{3,}/g, '\n\n')
+              .trim();
+    return text;
+  }
+
+  // ---------- Clipboard ----------
+  async function copyText(t) {
+    try { await navigator.clipboard.writeText(t); return true; } catch (_) {}
+    try {
+      const ta = document.createElement('textarea'); ta.value = t; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select(); const ok = document.execCommand('copy'); ta.remove(); return ok;
+    } catch (_) { return false; }
+  }
+
+  // ---------- Pipeline ----------
+  async function handleBytes(bytes) {
+    const text = await extract(bytes);
+    if (!text) throw new Error('No selectable text found. This PDF may be a scan (images only).');
+    $('text').value = text;
+    $('textCard').classList.remove('hidden');
+    loadForReading(text);
+    const words = text.split(/\s+/).length;
+    const copied = await copyText(text);
+    setStatus(copied ? `✓ Copied ${words.toLocaleString()} words to your clipboard. Ready to read!`
+                     : `Extracted ${words.toLocaleString()} words. Auto-copy was blocked, so press “Copy again”.`, copied ? 'ok' : '');
+  }
+  async function run(fn) {
+    $('go').disabled = true;
+    try { await fn(); } catch (e) { setStatus(e.message || String(e), 'err'); }
+    $('go').disabled = false;
+  }
+  $('form').addEventListener('submit', e => { e.preventDefault(); run(async () => handleBytes(await fetchPdf($('url').value.trim()))); });
+  const fromFile = f => f && run(async () => { setStatus('Opening file…'); handleBytes(new Uint8Array(await f.arrayBuffer())).catch(e => setStatus(e.message, 'err')); });
+  $('file').addEventListener('change', e => fromFile(e.target.files[0]));
+  const drop = $('drop');
+  ['dragenter', 'dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave', 'drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => fromFile(e.dataTransfer.files[0]));
+  $('pasteTxt').addEventListener('click', async () => {
+    let t = '';
+    try { t = await navigator.clipboard.readText(); } catch (_) {}
+    $('textCard').classList.remove('hidden'); $('text').value = t;
+    if (t.trim()) { loadForReading(t); setStatus('Loaded text from clipboard.', 'ok'); } else { $('text').focus(); setStatus('Paste your text below, then press “Read this text”.'); }
+  });
+  $('copy').addEventListener('click', async () => setStatus(await copyText($('text').value) ? '✓ Copied to clipboard.' : 'Copy blocked by the browser. Select the text and copy manually.', 'ok'));
+  $('useText').addEventListener('click', () => loadForReading($('text').value));
+
+  // ---------- Speed reader ----------
+  let words = [], idx = 0, timer = null, playing = false;
+  const wordEl = $('word'), seek = $('seek');
+  const store = { get(k, d) { try { return localStorage.getItem(k) ?? d; } catch (_) { return d; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (_) {} } };
+  $('wpm').value = store.get('sr_wpm', 350); $('fs').value = store.get('sr_fs', 52);
+
+  const orp = w => { const n = w.length; return n <= 1 ? 0 : n <= 5 ? 1 : n <= 9 ? 2 : n <= 13 ? 3 : 4; };
+  function show() {
+    const w = words[idx] || '';
+    const i = Math.min(orp(w), Math.max(0, w.length - 1));
+    const [l, p, r] = wordEl.children;
+    l.textContent = w.slice(0, i); p.textContent = w.charAt(i) || ' '; r.textContent = w.slice(i + 1);
+    seek.value = idx;
+    $('pos').textContent = `${Math.min(idx + 1, words.length).toLocaleString()} / ${words.length.toLocaleString()}`;
+    const left = Math.max(0, words.length - idx) / +$('wpm').value;
+    $('eta').textContent = left >= 1 ? `~${Math.ceil(left)} min left` : `~${Math.ceil(left * 60)} sec left`;
+  }
+  function delayFor(w) {
+    let m = 1;
+    if (/[.!?]["')”’\]]*$/.test(w)) m = 2.2; else if (/[,;:]["')”’\]]*$/.test(w)) m = 1.6; else if (/[)\]”"]$/.test(w)) m = 1.2;
+    if (w.length > 9) m *= 1.25;
+    return 60000 / +$('wpm').value * m;
+  }
+  function tick() {
+    if (!playing) return;
+    if (idx >= words.length - 1) return pause();
+    idx++; show(); timer = setTimeout(tick, delayFor(words[idx]));
+  }
+  function play() {
+    if (!words.length) return;
+    if (idx >= words.length - 1) idx = 0;
+    playing = true; $('play').textContent = '⏸ Pause'; show(); timer = setTimeout(tick, delayFor(words[idx]));
+  }
+  function pause() { playing = false; clearTimeout(timer); $('play').textContent = '▶ Play'; }
+  function jump(n) { idx = Math.max(0, Math.min(words.length - 1, n)); show(); if (playing) { clearTimeout(timer); timer = setTimeout(tick, delayFor(words[idx])); } }
+  function loadForReading(text) {
+    pause();
+    words = text.split(/\s+/).filter(Boolean); idx = 0;
+    seek.max = Math.max(0, words.length - 1);
+    $('reader').classList.remove('hidden');
+    show(); $('count').textContent = `(${words.length.toLocaleString()} words)`;
+    $('reader').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
+  $('play').addEventListener('click', () => playing ? pause() : play());
+  $('prev').addEventListener('click', () => jump(idx - 1)); $('next').addEventListener('click', () => jump(idx + 1));
+  $('back10').addEventListener('click', () => jump(idx - 10)); $('fwd10').addEventListener('click', () => jump(idx + 10));
+  $('restart').addEventListener('click', () => jump(0));
+  seek.addEventListener('input', () => jump(+seek.value));
+  $('wpm').addEventListener('input', e => { $('wpmV').textContent = e.target.value; store.set('sr_wpm', e.target.value); show(); });
+  $('fs').addEventListener('input', e => { $('fsV').textContent = e.target.value; store.set('sr_fs', e.target.value); wordEl.style.setProperty('--fs', e.target.value + 'px'); });
+  $('wpmV').textContent = $('wpm').value; $('fsV').textContent = $('fs').value; wordEl.style.setProperty('--fs', $('fs').value + 'px');
+
+  document.addEventListener('keydown', e => {
+    if (/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName) && document.activeElement.type !== 'range') return;
+    if ($('reader').classList.contains('hidden')) return;
+    if (e.code === 'Space') { e.preventDefault(); playing ? pause() : play(); }
+    else if (e.code === 'ArrowRight') jump(idx + 10);
+    else if (e.code === 'ArrowLeft') jump(idx - 10);
+    else if (e.code === 'ArrowUp' || e.code === 'ArrowDown') { e.preventDefault(); const s = $('wpm'); s.value = +s.value + (e.code === 'ArrowUp' ? 25 : -25); s.dispatchEvent(new Event('input')); }
+  });
+})();
+</script>
+</body>
+</html>
