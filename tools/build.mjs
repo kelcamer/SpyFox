@@ -36,6 +36,4 @@ mkdirSync(out, { recursive: true });
 writeFileSync(join(out, 'index.html'), full);
 writeFileSync(join(out, 'spyfox-artifact.html'), fragment);
 for (const f of readdirSync(join(root, 'public'))) copyFileSync(join(root, 'public', f), join(out, f));
-mkdirSync(join(out, 'speedread'), { recursive: true });
-copyFileSync(join(root, 'speedread', 'index.html'), join(out, 'speedread', 'index.html'));
 console.log(`Built dist/index.html (${(full.length / 1024).toFixed(1)} KB) and dist/spyfox-artifact.html`);
